@@ -3,68 +3,71 @@ import React, { Component, Fragment } from 'react';
 import {
   SafeAreaView,
   StyleSheet,
-
-  Animated
-
+  Animated,
+  PanResponder
 } from 'react-native';
 
 export default class App extends Component {
   state = {
-    ballY: new Animated.Value(0),
-    ballX: new Animated.Value(0),
+    // para receber os dois parametros XY podemos passar só bll e o ValueXY que é uma api que recebe os dois parametros e resolve eles
+    ball: new Animated.ValueXY({ x: 0, y: 0 }),
   }
 
-  componentDidMount() {
-    // "sequence" faz com uma animação aconteca apos a outra pois senao irao acontecer todas as animações ao mesmo tempo
-    // "parallel" tambem executa as animações em paralelo
-    // "stagger" executa uma animação e começa a seguinte apos o delay que passamos como parametro independente de ter ou não terminado a primeira
-    // "loop" executa infinitamente ou a quantidade definifa no "iterations"
+  UNSAFE_componentWillMount() {
+    // é o componente que lida com a parte de gestos
+    this._panResponder = PanResponder.create({
+      // esse metode ouve a movimentação gestual rece um evento e um estado como parametro
+      onMoveShouldSetPanResponder: (e, gestureState) => true,
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(this.state.ballY, {
-          toValue: 200,
-          duration: 500,
-        }),
+      // essa função serve para pegarmos o valor final do objeto e reiniciar por la, senao sempre vai retornar ao seu estado inicial
+      onPanResponderGrant: (e, gestureState) => {
+        this.state.ball.setOffset({
+          x: this.state.ball.x._value,
+          y: this.state.ball.y._value,
+        });
 
-        Animated.delay(300), // delay entre as animações
+        this.state.ball.setValue({ x: 0, y: 0 });
+      },
 
-        Animated.timing(this.state.ballX, {
-          toValue: 300,
-          duration: 500,
-        }),
+      // pra alterar a posição da bola em relaçãoaos gestos usamos esse metodo
+      onPanResponderMove: Animated.event([null, {
+        // recebe os parametros X e Y
+        dx: this.state.ball.x,
+        dy: this.state.ball.y,
 
-        Animated.delay(300),
+        //####IMPORTANTE essa função permite pegar a posição do objeto 
+      }], {
+        listener: (e, gestureState) => {
+          // fica armazenada no gestureState
+          console.log(gestureState);
+        }
+      }),
 
-        Animated.timing(this.state.ballY, {
-          toValue: 0,
-          duration: 500,
-        }),
-
-        Animated.delay(300),
-
-        Animated.timing(this.state.ballX, {
-          toValue: 0,
-          duration: 500,
-        }),
-
-        Animated.delay(300),
-
-      ]), {
-      iterations: 2 //diz a quantidade de vezes que o loop executa
-    }
-    ).start();
+      // essa função serve para zerar o offset e corrigir bug de confusão devido a varios offset em pilha
+      onPanResponderRelease: () => {
+        this.state.ball.flattenOffset();
+      }
+    });
   }
+
 
   render() {
     return (
       <Fragment>
         <SafeAreaView style={styles.container}>
           {/* passar o "estilo para a animação" colocar dentro de um array */}
-          <Animated.View style={[
-            styles.ball,
-            { top: this.state.ballY, left: this.state.ballX }
-          ]} />
+          <Animated.View
+            {... this._panResponder.panHandlers}
+            style={[
+              styles.ball,
+              {
+                //aqui não usammos top ou left passamos o transform que possui varios parametros
+                transform: [
+                  { translateX: this.state.ball.x },
+                  { translateY: this.state.ball.y },
+                ]
+              }
+            ]} />
         </SafeAreaView>
       </Fragment >
     );
